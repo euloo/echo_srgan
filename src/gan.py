@@ -6,14 +6,13 @@ from data_loader_camus import DatasetCAMUS
 from torchvision.utils import save_image
 import metrics
 from apex import amp
-import math
+
 # from torchsummary import summary
 import datetime
 import time
 import sys
-import random
-import os
-from utils import weights_init
+
+from utils import weights_init, seed_everything
 
 RESULT_DIR = 'results'
 VAL_DIR = 'val_images'
@@ -21,18 +20,6 @@ TEST_DIR = 'test_images'
 MODELS_DIR = 'saved_models'
 
 SEED = 17
-
-
-def seed_everything(seed):
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = True
-
-
 seed_everything(SEED)
 
 
@@ -83,29 +70,26 @@ class GAN:
         self.decay_factor_G = config['LR_EXP_DECAY_FACTOR_G']
         self.decay_factor_D = config['LR_EXP_DECAY_FACTOR_D']
 
-        if self.model == 1:
-            from models import GeneratorUNet, Discriminator
-            print('model 1 with Pixel Shuffle layers')
-        elif self.model == 0:
-            from models_old import GeneratorUNet, Discriminator
-            print('model 0 with ConvTranspose2d layers')
+        if self.model == 0:
+            from model_Unet_ConvTranspose import Generator, Discriminator
+            self.generator = Generator(in_channels=self.channels, out_channels=self.channels).to(self.device)
+            self.discriminator = Discriminator(img_size=(self.img_rows, self.img_cols), in_channels=self.channels,
+                                               patch_size=(patch_size, patch_size)).to(self.device)
+            print('model 0: Unet Generator with ConvTranspose2d layers')
+
+        elif self.model == 1:
+            from model_Unet_PixelShuffle import Generator, Discriminator
+            self.generator = Generator(in_channels=self.channels, out_channels=self.channels).to(self.device)
+            self.discriminator = Discriminator(img_size=(self.img_rows, self.img_cols), in_channels=self.channels,
+                                               patch_size=(patch_size, patch_size)).to(self.device)
+            print('model 1: Unet Generator with Pixel Shuffle layers')
+
         elif self.model == 2:
-            from model_SRGAN import Generator, Discriminator
-            print('model 2 SRGAN')
-        elif self.model == 3:
-            from model_SRGAN_2 import Generator, Discriminator, FeatureExtractor
-            print('model 3 SRGAN ResNet VGG')
-
-        # GeneratorUNet
-        # self.generator = Generator(in_channels=self.channels, out_channels=self.channels).to(self.device)
-        # self.discriminator = Discriminator(img_size=(self.img_rows, self.img_cols), in_channels=self.channels,
-        #                                   patch_size=(patch_size, patch_size)).to(self.device)
-        self.generator = Generator(scale_factor=1).to(self.device)
-        #self.discriminator = Discriminator().to(self.device)
-        #self.generator = Generator(in_channels=1, out_channels=1, n_residual_blocks=16).to(self.device)
-
-        self.discriminator = Discriminator(input_shape=self.img_shape).to(self.device)
-        self.feature_extractor = FeatureExtractor().to(self.device)
+            from model_SRGAN import Generator, Discriminator, FeatureExtractor
+            self.generator = Generator(scale_factor=1).to(self.device)
+            self.discriminator = Discriminator(input_shape=self.img_shape).to(self.device)
+            self.feature_extractor = FeatureExtractor().to(self.device)
+            print('model 3: SRGAN ResNet with VGG feature extractor')
 
         self.generator.apply(weights_init)
         self.discriminator.apply(weights_init)
@@ -113,6 +97,7 @@ class GAN:
         self.optimizer_G = torch.optim.Adam(self.generator.parameters(),
                                             lr=config['LEARNING_RATE_G'],
                                             betas=(config['ADAM_B1'], 0.999))  # 0.0002
+
         self.optimizer_D = torch.optim.Adam(self.discriminator.parameters(),
                                             lr=config['LEARNING_RATE_D'],
                                             betas=(config['ADAM_B1'], 0.999))
@@ -129,11 +114,11 @@ class GAN:
 
         self.criterion_GAN = torch.nn.MSELoss().to(self.device)
 
-        #self.feature_extractor.to(self.device)
-
-        self.criterion_pixelwise = torch.nn.L1Loss(reduction='none').to(self.device)  # MAE
+        # TODO: choice of losses
+        #self.criterion_pixelwise = torch.nn.L1Loss(reduction='none').to(self.device)  # MAE
         # self.criterion_pixelwise = torch.nn.BCEWithLogitsLoss().to(self.device) # + weight + mean
         self.criterion_content = torch.nn.L1Loss().to(self.device)
+
         self.augmentation = dict()
         for key, value in config.items():
             if 'AUG_' in key:
@@ -202,7 +187,7 @@ class GAN:
         self.average_loss_G_train = metrics.AverageMeter()
         self.average_loss_G_valid = metrics.AverageMeter()
 
-    # do not use
+    # do not use TODO: rewrite
     def valid(self):
         # validation
         self.generator.eval()
@@ -216,8 +201,8 @@ class GAN:
         weight_map = weight_map.to(self.device)
 
         # Adversarial ground truths for discriminator losses
-        #patch_real = torch.tensor(np.ones((mask.size(0), *self.patch)), dtype=torch.float32, device=self.device)
-        #patch_fake = torch.tensor(np.zeros((mask.size(0), *self.patch)), dtype=torch.float32,
+        # patch_real = torch.tensor(np.ones((mask.size(0), *self.patch)), dtype=torch.float32, device=self.device)
+        # patch_fake = torch.tensor(np.zeros((mask.size(0), *self.patch)), dtype=torch.float32,
         #                          device=self.device)
 
         fake_echo = self.generator(full_mask)  # * segment_mask  # mask
@@ -311,7 +296,7 @@ class GAN:
                 fake_echo = self.generator(full_mask)
                 pred_fake = self.discriminator(fake_echo, mask)
 
-                loss_GAN = self.criterion_GAN(pred_fake, torch.zeros_like(pred_fake))
+                loss_GAN = self.criterion_GAN(pred_fake, torch.ones_like(pred_fake)) #zeros
 
                 # Content Loss
                 gen_features = self.feature_extractor(fake_echo)
@@ -319,7 +304,7 @@ class GAN:
                 loss_content = self.criterion_content(gen_features, real_features.detach())
 
                 # Pixel-wise loss
-                #loss_pixel = torch.mean(self.criterion_pixelwise(fake_echo, image) * weight_map)  # * segment_mask
+                # loss_pixel = torch.mean(self.criterion_pixelwise(fake_echo, image) * weight_map)  # * segment_mask
 
                 # Total loss
                 loss_G = self.loss_weight_d * loss_GAN + self.loss_weight_g * loss_content  # 1 100
