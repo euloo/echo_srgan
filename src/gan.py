@@ -1,13 +1,11 @@
 import numpy as np
 import torch
-# from models_old import GeneratorUNet, Discriminator
 
 from data_loader_camus import DatasetCAMUS
 from torchvision.utils import save_image
 import metrics
 from apex import amp
 
-# from torchsummary import summary
 import datetime
 import time
 import sys
@@ -114,7 +112,6 @@ class GAN:
 
         self.criterion_GAN = torch.nn.MSELoss().to(self.device)
 
-        # TODO: choice of losses
         self.criterion_pixelwise = torch.nn.L1Loss(reduction='none').to(self.device)  # MAE
         # self.criterion_pixelwise = torch.nn.BCEWithLogitsLoss().to(self.device) # + weight + mean
         #self.criterion_content = torch.nn.L1Loss().to(self.device)
@@ -253,11 +250,6 @@ class GAN:
                 weight_map = weight_map.to(self.device)
                 segment_mask = segment_mask.to(self.device)
 
-                # Adversarial ground truths for discriminator losses
-                # patch_real = torch.tensor(np.ones((mask.size(0), *self.patch)), dtype=torch.float32, device=self.device)
-                # patch_fake = torch.tensor(np.zeros((mask.size(0), *self.patch)), dtype=torch.float32,
-                #                          device=self.device)
-
                 #  Train Discriminator
 
                 self.generator.eval()
@@ -269,7 +261,6 @@ class GAN:
 
                 # Real loss
                 pred_real = self.discriminator(image, mask)
-                # loss_real = self.criterion_GAN(pred_real, patch_real)
                 loss_real = self.criterion_GAN(pred_real, torch.ones_like(pred_real))
 
                 # Fake loss
@@ -296,7 +287,7 @@ class GAN:
                 fake_echo = self.generator(full_mask)
                 pred_fake = self.discriminator(fake_echo, mask)
 
-                loss_GAN = self.criterion_GAN(pred_fake, torch.ones_like(pred_fake)) #zeros
+                loss_GAN = self.criterion_GAN(pred_fake, torch.ones_like(pred_fake))
 
                 # Content Loss
                # gen_features = self.feature_extractor(fake_echo)

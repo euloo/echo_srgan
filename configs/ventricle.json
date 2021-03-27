@@ -35,5 +35,5 @@
   "RANDOM_SEED": 17,
   "TRAIN_RATIO": 0.95,
   "VALID_RATIO": 0.02,
-  "MODEL": 1
+  "MODEL": 0
 }
