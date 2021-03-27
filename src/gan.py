@@ -115,9 +115,9 @@ class GAN:
         self.criterion_GAN = torch.nn.MSELoss().to(self.device)
 
         # TODO: choice of losses
-        #self.criterion_pixelwise = torch.nn.L1Loss(reduction='none').to(self.device)  # MAE
+        self.criterion_pixelwise = torch.nn.L1Loss(reduction='none').to(self.device)  # MAE
         # self.criterion_pixelwise = torch.nn.BCEWithLogitsLoss().to(self.device) # + weight + mean
-        self.criterion_content = torch.nn.L1Loss().to(self.device)
+        #self.criterion_content = torch.nn.L1Loss().to(self.device)
 
         self.augmentation = dict()
         for key, value in config.items():
@@ -299,15 +299,15 @@ class GAN:
                 loss_GAN = self.criterion_GAN(pred_fake, torch.ones_like(pred_fake)) #zeros
 
                 # Content Loss
-                gen_features = self.feature_extractor(fake_echo)
-                real_features = self.feature_extractor(image)
-                loss_content = self.criterion_content(gen_features, real_features.detach())
+               # gen_features = self.feature_extractor(fake_echo)
+               # real_features = self.feature_extractor(image)
+               # loss_content = self.criterion_content(gen_features, real_features.detach())
 
                 # Pixel-wise loss
-                # loss_pixel = torch.mean(self.criterion_pixelwise(fake_echo, image) * weight_map)  # * segment_mask
+                loss_pixel = torch.mean(self.criterion_pixelwise(fake_echo, image) * weight_map)  # * segment_mask
 
                 # Total loss
-                loss_G = self.loss_weight_d * loss_GAN + self.loss_weight_g * loss_content  # 1 100
+                loss_G = self.loss_weight_d * loss_GAN + self.loss_weight_g * loss_pixel  # 1 100
 
                 with amp.scale_loss(loss_G, self.optimizer_G) as scaled_loss:
                     scaled_loss.backward()
@@ -341,7 +341,7 @@ class GAN:
                         loss_fake.item(),
                         loss_real.item(),
                         loss_G.item(),
-                        loss_content.item(),
+                        loss_pixel.item(),
                         loss_GAN.item(),
                         psnr,
                         ssim,
@@ -377,7 +377,7 @@ class GAN:
                 if self.use_wandb:
                     import wandb
                     wandb.log({'loss_D': loss_D, 'loss_real_D': loss_real, 'loss_fake_D': loss_fake,
-                               'loss_G': loss_G, 'loss_pixel': loss_content, 'loss_GAN': loss_GAN,
+                               'loss_G': loss_G, 'loss_pixel': loss_pixel, 'loss_GAN': loss_GAN,
                                'PSNR': psnr, 'SSIM': ssim,
                                # 'loss_D_val': loss_D_val, 'loss_real_D_val': loss_real_val,
                                # 'loss_fake_D_val': loss_fake_val,
