@@ -114,7 +114,7 @@ class GAN:
 
         self.criterion_pixelwise = torch.nn.L1Loss(reduction='none').to(self.device)  # MAE
         # self.criterion_pixelwise = torch.nn.BCEWithLogitsLoss().to(self.device) # + weight + mean
-        #self.criterion_content = torch.nn.L1Loss().to(self.device)
+        # self.criterion_content = torch.nn.L1Loss().to(self.device)
 
         self.augmentation = dict()
         for key, value in config.items():
@@ -241,7 +241,6 @@ class GAN:
         for epoch in range(self.loaded_epoch, self.epochs):
             self.epoch = epoch
             for i, batch in enumerate(self.train_loader):
-
                 image, mask, full_mask, weight_map, segment_mask, quality, heart_state, view = batch
 
                 mask = mask.to(self.device)
@@ -290,9 +289,9 @@ class GAN:
                 loss_GAN = self.criterion_GAN(pred_fake, torch.ones_like(pred_fake))
 
                 # Content Loss
-               # gen_features = self.feature_extractor(fake_echo)
-               # real_features = self.feature_extractor(image)
-               # loss_content = self.criterion_content(gen_features, real_features.detach())
+                # gen_features = self.feature_extractor(fake_echo)
+                # real_features = self.feature_extractor(image)
+                # loss_content = self.criterion_content(gen_features, real_features.detach())
 
                 # Pixel-wise loss
                 loss_pixel = torch.mean(self.criterion_pixelwise(fake_echo, image) * weight_map)  # * segment_mask
@@ -357,33 +356,34 @@ class GAN:
                 #    )
                 #    )
 
-                # save images
-                if batches_done % self.log_interval == 0:
-                    self.generator.eval()
-                    self.discriminator.eval()
-                    self.sample_images(batches_done)
+            # save images each epoch
 
-                # log wandb
-                self.step += 1
-                if self.use_wandb:
-                    import wandb
-                    wandb.log({'loss_D': loss_D, 'loss_real_D': loss_real, 'loss_fake_D': loss_fake,
-                               'loss_G': loss_G, 'loss_pixel': loss_pixel, 'loss_GAN': loss_GAN,
-                               'PSNR': psnr, 'SSIM': ssim,
-                               # 'loss_D_val': loss_D_val, 'loss_real_D_val': loss_real_val,
-                               # 'loss_fake_D_val': loss_fake_val,
-                               # 'loss_G_val': loss_G_val, 'loss_pixel_val': loss_pixel_val, 'loss_GAN_val': loss_GAN_val,
-                               # 'PSNR_val': psnr_val, 'SSIM_val': ssim_val
-                               },
+            self.generator.eval()
+            self.discriminator.eval()
+            self.sample_images(batches_done)
 
-                              step=self.step)
+            # log wandb
+
+            self.step += 1
+            if self.use_wandb:
+                import wandb
+                wandb.log({'loss_D': loss_D, 'loss_real_D': loss_real, 'loss_fake_D': loss_fake,
+                           'loss_G': loss_G, 'loss_pixel': loss_pixel, 'loss_GAN': loss_GAN,
+                           'PSNR': psnr, 'SSIM': ssim,
+                           # 'loss_D_val': loss_D_val, 'loss_real_D_val': loss_real_val,
+                           # 'loss_fake_D_val': loss_fake_val,
+                           # 'loss_G_val': loss_G_val, 'loss_pixel_val': loss_pixel_val, 'loss_GAN_val': loss_GAN_val,
+                           # 'PSNR_val': psnr_val, 'SSIM_val': ssim_val
+                           },
+
+                          step=self.step)
 
             # save models
             if (epoch + 1) % save_model_interval == 0:
                 self.save(f'{self.base_dir}/generator_last_checkpoint.bin', model='generator')
                 self.save(f'{self.base_dir}/discriminator_last_checkpoint.bin', model='discriminator')
-        loss_D_val, loss_fake_val, loss_real_val, loss_G_val, loss_pixel_val, loss_GAN_val, psnr_val, ssim_val = self.valid()
-        print(loss_D_val, loss_fake_val, loss_real_val, loss_G_val, loss_pixel_val, loss_GAN_val, psnr_val, ssim_val)
+        #loss_D_val, loss_fake_val, loss_real_val, loss_G_val, loss_pixel_val, loss_GAN_val, psnr_val, ssim_val = self.valid()
+        #print(loss_D_val, loss_fake_val, loss_real_val, loss_G_val, loss_pixel_val, loss_GAN_val, psnr_val, ssim_val)
 
     def sample_images(self, batches_done):
         """Saves a generated sample from the validation set"""
