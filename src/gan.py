@@ -258,10 +258,9 @@ class GAN:
                 # Total loss
                 loss_D = 0.5 * (loss_real + loss_fake)
 
-                loss_real_avg.update(loss_real.item())
-                loss_fake_avg.update(loss_fake.item())
-                loss_D_avg.update(loss_D.item())
-
+                loss_real_avg.update(loss_real.detach().item())
+                loss_fake_avg.update(loss_fake.detach().item())
+                loss_D_avg.update(loss_D.detach().item())
 
                 loss_D.backward()
                 self.optimizer_D.step()
@@ -289,10 +288,9 @@ class GAN:
                 # Total loss
                 loss_G = self.loss_weight_d * loss_GAN + self.loss_weight_g * loss_pixel  # 1 100
 
-                loss_GAN_avg.update(loss_GAN.item())
-                loss_pixel_avg.update(loss_pixel.item())
-                loss_G_avg.update(loss_G.item())
-
+                loss_GAN_avg.update(loss_GAN.detach().item())
+                loss_pixel_avg.update(loss_pixel.detach().item())
+                loss_G_avg.update(loss_G.detach().item())
 
                 loss_G.backward()
                 self.optimizer_G.step()
