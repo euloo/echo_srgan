@@ -258,9 +258,9 @@ class GAN:
                 # Total loss
                 loss_D = 0.5 * (loss_real + loss_fake)
 
-                loss_real_avg.update(loss_real.detach().item())
-                loss_fake_avg.update(loss_fake.detach().item())
-                loss_D_avg.update(loss_D.detach().item())
+                loss_real_avg.update(loss_real.data.item())
+                loss_fake_avg.update(loss_fake.data.item())
+                loss_D_avg.update(loss_D.data.item())
 
                 loss_D.backward()
                 self.optimizer_D.step()
@@ -288,9 +288,9 @@ class GAN:
                 # Total loss
                 loss_G = self.loss_weight_d * loss_GAN + self.loss_weight_g * loss_pixel  # 1 100
 
-                loss_GAN_avg.update(loss_GAN.detach().item())
-                loss_pixel_avg.update(loss_pixel.detach().item())
-                loss_G_avg.update(loss_G.detach().item())
+                loss_GAN_avg.update(loss_GAN.data.item())
+                loss_pixel_avg.update(loss_pixel.data.item())
+                loss_G_avg.update(loss_G.data.item())
 
                 loss_G.backward()
                 self.optimizer_G.step()
@@ -304,8 +304,8 @@ class GAN:
                 prev_time = time.time()
 
                 # metrics
-                psnr = metrics.psnr(mask, fake_echo)  # * segment_mask
-                ssim = metrics.ssim(mask, fake_echo, window_size=11, size_average=True)  # * segment_mask
+                psnr = metrics.psnr(mask.data, fake_echo.data)  # * segment_mask
+                ssim = metrics.ssim(mask.data, fake_echo.data, window_size=11, size_average=True)  # * segment_mask
 
                 psnr_avg.update(psnr)
                 ssim_avg.update(ssim)
