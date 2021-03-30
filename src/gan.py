@@ -4,7 +4,6 @@ import torch
 from data_loader_camus import DatasetCAMUS
 from torchvision.utils import save_image
 import metrics
-from apex import amp
 
 import datetime
 import time
@@ -98,16 +97,6 @@ class GAN:
         self.optimizer_D = torch.optim.Adam(self.discriminator.parameters(),
                                             lr=config['LEARNING_RATE_D'],
                                             betas=(config['ADAM_B1'], 0.999))
-
-        opt_level = 'O1'
-
-        self.generator, self.optimizer_G = amp.initialize(self.generator,
-                                                          self.optimizer_G,
-                                                          opt_level=opt_level)
-
-        self.discriminator, self.optimizer_D = amp.initialize(self.discriminator,
-                                                              self.optimizer_D,
-                                                              opt_level=opt_level)
 
         self.criterion_GAN = torch.nn.MSELoss().to(self.device)
 
@@ -229,6 +218,15 @@ class GAN:
         prev_time = time.time()
         batch_size = self.batch_size
 
+        loss_G_avg = metrics.AverageMeter()
+        loss_D_avg = metrics.AverageMeter()
+        loss_real_avg = metrics.AverageMeter()
+        loss_fake_avg = metrics.AverageMeter()
+        loss_pixel_avg = metrics.AverageMeter()
+        loss_GAN_avg = metrics.AverageMeter()
+        psnr_avg = metrics.AverageMeter()
+        ssim_avg = metrics.AverageMeter()
+
         for epoch in range(self.loaded_epoch, self.epochs):
             self.epoch = epoch
             for i, batch in enumerate(self.train_loader):
@@ -245,8 +243,6 @@ class GAN:
                 self.generator.eval()
                 self.discriminator.train()
 
-                self.optimizer_D.zero_grad()
-
                 fake_echo = self.generator(full_mask)  # * segment_mask  # mask
 
                 # Real loss
@@ -261,17 +257,19 @@ class GAN:
                 # Total loss
                 loss_D = 0.5 * (loss_real + loss_fake)
 
-                with amp.scale_loss(loss_D, self.optimizer_D) as scaled_loss:
-                    scaled_loss.backward()
+                loss_real_avg.update(loss_real.item())
+                loss_fake_avg.update(loss_fake.item())
+                loss_D_avg.update(loss_D.item())
 
+
+                self.optimizer_D.zero_grad()
+                loss_D.backward()
                 self.optimizer_D.step()
 
                 #  Train Generator
 
                 self.generator.train()
                 self.discriminator.eval()
-
-                self.optimizer_G.zero_grad()
 
                 # GAN loss
                 fake_echo = self.generator(full_mask)
@@ -290,9 +288,12 @@ class GAN:
                 # Total loss
                 loss_G = self.loss_weight_d * loss_GAN + self.loss_weight_g * loss_pixel  # 1 100
 
-                with amp.scale_loss(loss_G, self.optimizer_G) as scaled_loss:
-                    scaled_loss.backward()
+                loss_GAN_avg.update(loss_GAN.item())
+                loss_pixel_avg.update(loss_pixel.item())
+                loss_G_avg.update(loss_G.item())
 
+                self.optimizer_G.zero_grad()
+                loss_G.backward()
                 self.optimizer_G.step()
 
                 #  Log Progress
@@ -307,28 +308,26 @@ class GAN:
                 psnr = metrics.psnr(mask, fake_echo)  # * segment_mask
                 ssim = metrics.ssim(mask, fake_echo, window_size=11, size_average=True)  # * segment_mask
 
-                # self.average_loss_G_train.update(loss_G.item())
-                # print(self.average_loss_G_train.val)
+                psnr_avg.update(psnr)
+                ssim_avg.update(ssim)
 
-                # print log
-                sys.stdout.write(
-                    "\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f patch_fake: %f real: %f] [G loss: %f, pixel: %f, adv: %f] PSNR: %f SSIM: %f ETA: %s"
-                    % (
-                        self.epoch,
-                        self.epochs,
-                        i,
-                        len(self.train_loader),
-                        loss_D.item(),
-                        loss_fake.item(),
-                        loss_real.item(),
-                        loss_G.item(),
-                        loss_pixel.item(),
-                        loss_GAN.item(),
-                        psnr,
-                        ssim,
-                        time_left,
-                    )
+            # print log
+            sys.stdout.write(
+                "\r[Epoch %d/%d] [D loss: %f patch_fake: %f real: %f] [G loss: %f, pixel: %f, adv: %f] PSNR: %f SSIM: %f ETA: %s"
+                % (
+                    self.epoch,
+                    self.epochs,
+                    loss_D_avg.avg,
+                    loss_fake_avg.avg,
+                    loss_real_avg.avg,
+                    loss_G_avg.avg,
+                    loss_pixel_avg.avg,
+                    loss_GAN_avg.avg,
+                    psnr_avg.avg,
+                    ssim_avg.avg,
+                    time_left,
                 )
+            )
 
             # save images each epoch
 
@@ -341,13 +340,9 @@ class GAN:
             self.step += 1
             if self.use_wandb:
                 import wandb
-                wandb.log({'loss_D': loss_D, 'loss_real_D': loss_real, 'loss_fake_D': loss_fake,
-                           'loss_G': loss_G, 'loss_pixel': loss_pixel, 'loss_GAN': loss_GAN,
-                           'PSNR': psnr, 'SSIM': ssim,
-                           # 'loss_D_val': loss_D_val, 'loss_real_D_val': loss_real_val,
-                           # 'loss_fake_D_val': loss_fake_val,
-                           # 'loss_G_val': loss_G_val, 'loss_pixel_val': loss_pixel_val, 'loss_GAN_val': loss_GAN_val,
-                           # 'PSNR_val': psnr_val, 'SSIM_val': ssim_val
+                wandb.log({'loss_D': loss_D_avg.avg, 'loss_real_D': loss_real_avg.avg, 'loss_fake_D': loss_fake_avg.avg,
+                           'loss_G': loss_G_avg.avg, 'loss_pixel': loss_pixel_avg.avg, 'loss_GAN': loss_GAN_avg.avg,
+                           'PSNR': psnr_avg.avg, 'SSIM': ssim_avg.avg,
                            },
 
                           step=self.step)
