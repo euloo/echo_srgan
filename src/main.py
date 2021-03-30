@@ -16,6 +16,7 @@ flags.DEFINE_boolean('use_wandb', False, 'Use wandb for logging')
 flags.DEFINE_string('wandb_resume_id', None, 'Resume wandb process with the given id')
 flags.DEFINE_string('wandb_run_name', 'blah-blah', 'wandb run name')
 flags.DEFINE_string('ckpt_load', None, 'Path to load the model')
+flags.DEFINE_integer('cuda', 0, 'num of GPU (0-3)')
 # in the config now
 # flags.DEFINE_float('train_ratio', 0.95,
 #                   'Ratio of training data used for training and the rest used for testing. Set this value to 1.0 if '
@@ -44,11 +45,12 @@ def main(argv):
     if FLAGS.use_wandb:
         import wandb
         resume_wandb = True if FLAGS.wandb_resume_id is not None else False
-        wandb.init(config=config, resume=resume_wandb, id=FLAGS.wandb_resume_id, project='EchoGen',
+        wandb.init(config=config, resume=resume_wandb, id=FLAGS.wandb_resume_id, project='echo',
                    name=FLAGS.wandb_run_name)
 
     # Initialize GAN
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:" + str(FLAGS.cuda))
+    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(device)
 
     model = GAN(config, FLAGS.use_wandb, device, FLAGS.dataset_path)
