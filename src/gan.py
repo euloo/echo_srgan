@@ -174,10 +174,6 @@ class GAN:
 
         # Training hyper-parameters
         self.batch_size = config['BATCH_SIZE']
-        # self.max_iter = config['MAX_ITER']
-        self.val_interval = config['VAL_INTERVAL']
-        self.log_interval = config['LOG_INTERVAL']
-        self.save_model_interval = config['SAVE_MODEL_INTERVAL']
         self.lr_G = config['LEARNING_RATE_G']
         self.lr_D = config['LEARNING_RATE_D']
 
@@ -233,10 +229,6 @@ class GAN:
 
         prev_time = time.time()
         batch_size = self.batch_size
-        # max_iter = self.max_iter
-        val_interval = self.val_interval
-        log_interval = self.log_interval
-        save_model_interval = self.save_model_interval
 
         for epoch in range(self.loaded_epoch, self.epochs):
             self.epoch = epoch
@@ -338,29 +330,12 @@ class GAN:
                         time_left,
                     )
                 )
-                # sys.stdout.write(
-                #    "\r[Epoch %d/%d] [Batch %d/%d] TRAIN [D loss: %f G loss: %f PSNR: %f SSIM: %f] VAL [D loss: %f G loss: %f PSNR: %f SSIM: %f]" % (
-                #        self.epoch,
-                #        self.epochs,
-                #        i,
-                #        len(self.train_loader),
-                #        loss_D.item(),
-                #        loss_G.item(),
-                #        psnr,
-                #        ssim,
-                #        loss_D_val,
-                #        loss_G_val,
-                #        psnr_val,
-                #        ssim_val
-
-                #    )
-                #    )
 
             # save images each epoch
 
             self.generator.eval()
             self.discriminator.eval()
-            self.sample_images(batches_done)
+            self.sample_images(epoch)
 
             # log wandb
 
@@ -379,13 +354,11 @@ class GAN:
                           step=self.step)
 
             # save models
-            if (epoch + 1) % save_model_interval == 0:
+            if (epoch + 1) % 100 == 0:
                 self.save(f'{self.base_dir}/generator_last_checkpoint.bin', model='generator')
                 self.save(f'{self.base_dir}/discriminator_last_checkpoint.bin', model='discriminator')
-        #loss_D_val, loss_fake_val, loss_real_val, loss_G_val, loss_pixel_val, loss_GAN_val, psnr_val, ssim_val = self.valid()
-        #print(loss_D_val, loss_fake_val, loss_real_val, loss_G_val, loss_pixel_val, loss_GAN_val, psnr_val, ssim_val)
 
-    def sample_images(self, batches_done):
+    def sample_images(self, epoch):
         """Saves a generated sample from the validation set"""
         image, mask, full_mask, weight_map, segment_mask, quality, heart_state, view = next(iter(self.valid_loader))
         image = image.to(self.device)
@@ -395,7 +368,7 @@ class GAN:
         segment_mask = segment_mask.to(self.device)
         fake_echo = self.generator(full_mask)  # * segment_mask # , quality)
         img_sample = torch.cat((image.data, fake_echo.data, mask.data), -2)
-        save_image(img_sample, "images/%s.png" % batches_done, nrow=4, normalize=True)
+        save_image(img_sample, "images/%s.png" % epoch, nrow=4, normalize=True)
 
         batch = 4
         image = image.cpu().detach().numpy()
@@ -422,7 +395,7 @@ class GAN:
                 cnt += 1
 
         # fig.savefig('%s/%s/%s/%s_%d.png' % (RESULT_DIR, self.result_name, VAL_DIR, prefix, step_num))
-        fig.savefig("images/_%s.png" % batches_done)
+        fig.savefig("images/_%s.png" % epoch)
         plt.close(fig)
 
         if self.use_wandb:
