@@ -6,4 +6,4 @@
 #SBATCH --time=1:00:00                      # Максимальное время выполнения
 #SBATCH --cpus-per-task=8                # Выполнение расчёта на 2 ядрах CPU
 #SBATCH --gpus=1                            # Требуемое кол-во GPU
-python src/main.py --dataset_path=../../datasets/CAMUS --config=configs/ventricle.json --use_wandb=True --wandb_run_name=slrm --cuda=0
+python src/main.py --dataset_path=../../datasets/CAMUS --config=configs/ventricle_b32.json --use_wandb=True --wandb_run_name=b32_c2 --cuda=2
