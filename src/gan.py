@@ -242,6 +242,7 @@ class GAN:
 
                 self.generator.eval()
                 self.discriminator.train()
+                self.optimizer_D.zero_grad()
 
                 fake_echo = self.generator(full_mask)  # * segment_mask  # mask
 
@@ -262,7 +263,6 @@ class GAN:
                 loss_D_avg.update(loss_D.item())
 
 
-                self.optimizer_D.zero_grad()
                 loss_D.backward()
                 self.optimizer_D.step()
 
@@ -270,6 +270,7 @@ class GAN:
 
                 self.generator.train()
                 self.discriminator.eval()
+                self.optimizer_G.zero_grad()
 
                 # GAN loss
                 fake_echo = self.generator(full_mask)
@@ -292,7 +293,7 @@ class GAN:
                 loss_pixel_avg.update(loss_pixel.item())
                 loss_G_avg.update(loss_G.item())
 
-                self.optimizer_G.zero_grad()
+
                 loss_G.backward()
                 self.optimizer_G.step()
 
