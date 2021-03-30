@@ -31,7 +31,6 @@ class GAN:
         self.use_wandb = use_wandb
         self.device = device
         self.epochs = config['EPOCHS']
-        self.log_interval = config['LOG_INTERVAL']
         self.step = 0
         self.loaded_epoch = 0
         self.epoch = 0
