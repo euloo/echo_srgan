@@ -199,7 +199,7 @@ class GAN:
                 self.discriminator.train()
                 self.optimizer_D.zero_grad()
 
-                fake_echo = self.generator(full_mask) # * circle_mask
+                fake_echo = self.generator(full_mask)  * circle_mask
 
                 # Real loss
                 pred_real = self.discriminator(image, mask)
@@ -227,7 +227,7 @@ class GAN:
                 self.optimizer_G.zero_grad()
 
                 # GAN loss
-                fake_echo = self.generator(full_mask) # * circle_mask
+                fake_echo = self.generator(full_mask)  * circle_mask
                 pred_fake = self.discriminator(fake_echo, mask)
 
                 loss_GAN = self.criterion_GAN(pred_fake, torch.ones_like(pred_fake))
