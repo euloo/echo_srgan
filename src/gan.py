@@ -238,7 +238,7 @@ class GAN:
                 # loss_content = self.criterion_content(gen_features, real_features.detach())
 
                 # Pixel-wise loss
-                loss_pixel = torch.mean(self.criterion_pixelwise(fake_echo, image) * weight_map) # weight map?
+                loss_pixel = torch.mean(self.criterion_pixelwise(fake_echo, image) )#* weight_map) # weight map?
 
                 # Total loss
                 loss_G = self.loss_weight_d * loss_GAN + self.loss_weight_g * loss_pixel  # 1 100
