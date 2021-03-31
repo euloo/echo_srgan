@@ -165,53 +165,8 @@ class GAN:
         self.lr_G = config['LEARNING_RATE_G']
         self.lr_D = config['LEARNING_RATE_D']
 
-        self.average_loss_G_train = metrics.AverageMeter()
-        self.average_loss_G_valid = metrics.AverageMeter()
-
-    # do not use TODO: rewrite
     def valid(self):
-        # validation
-        self.generator.eval()
-        self.discriminator.eval()
-        # for i, batch in enumerate(self.valid_loader):
-        #    image, mask, full_mask, weight_map, segment_mask, quality, heart_state, view = batch
-        image, mask, full_mask, weight_map, segment_mask, quality, heart_state, view = next(iter(self.valid_loader))
-        mask = mask.to(self.device)
-        image = image.to(self.device)
-        full_mask = full_mask.to(self.device)
-        weight_map = weight_map.to(self.device)
-
-        # Adversarial ground truths for discriminator losses
-        # patch_real = torch.tensor(np.ones((mask.size(0), *self.patch)), dtype=torch.float32, device=self.device)
-        # patch_fake = torch.tensor(np.zeros((mask.size(0), *self.patch)), dtype=torch.float32,
-        #                          device=self.device)
-
-        fake_echo = self.generator(full_mask)  # * segment_mask  # mask
-
-        # Real loss
-        pred_real = self.discriminator(image, mask)
-        # loss_real = self.criterion_GAN(pred_real, patch_real)
-        loss_real = self.criterion_GAN(pred_real, torch.ones_like(pred_real))
-
-        # Fake loss
-        pred_fake = self.discriminator(fake_echo.detach(), mask)
-        loss_fake = self.criterion_GAN(pred_fake, torch.zeros_like(pred_fake))
-
-        # Total loss
-        loss_D = 0.5 * (loss_real + loss_fake)
-
-        loss_GAN = self.criterion_GAN(pred_fake, torch.zeros_like(pred_fake))
-        # loss_GAN = 0
-
-        # Pixel-wise loss
-        loss_pixel = torch.mean(self.criterion_pixelwise(fake_echo, image) * weight_map)  # * segment_mask
-
-        # Total loss
-        loss_G = self.loss_weight_d * loss_GAN + self.loss_weight_g * loss_pixel  # 1 100
-
-        psnr = metrics.psnr(mask, fake_echo)  # * segment_mask
-        ssim = metrics.ssim(mask, fake_echo, window_size=11, size_average=True)  # * segment_mask
-        return loss_D.item(), loss_fake.item(), loss_real.item(), loss_G.item(), loss_pixel.item(), loss_GAN.item(), psnr, ssim
+        pass
 
     def train(self):
 
@@ -230,13 +185,13 @@ class GAN:
         for epoch in range(self.loaded_epoch, self.epochs):
             self.epoch = epoch
             for i, batch in enumerate(self.train_loader):
-                image, mask, full_mask, weight_map, segment_mask, quality, heart_state, view = batch
+                image, mask, full_mask, weight_map, circle_mask, quality, heart_state, view = batch
 
                 mask = mask.to(self.device)
                 image = image.to(self.device)
                 full_mask = full_mask.to(self.device)
                 weight_map = weight_map.to(self.device)
-                segment_mask = segment_mask.to(self.device)
+                circle_mask = circle_mask.to(self.device)
 
                 #  Train Discriminator
 
@@ -244,7 +199,7 @@ class GAN:
                 self.discriminator.train()
                 self.optimizer_D.zero_grad()
 
-                fake_echo = self.generator(full_mask) * segment_mask  # mask
+                fake_echo = self.generator(full_mask) * circle_mask
 
                 # Real loss
                 pred_real = self.discriminator(image, mask)
@@ -272,7 +227,7 @@ class GAN:
                 self.optimizer_G.zero_grad()
 
                 # GAN loss
-                fake_echo = self.generator(full_mask) * segment_mask
+                fake_echo = self.generator(full_mask) * circle_mask
                 pred_fake = self.discriminator(fake_echo, mask)
 
                 loss_GAN = self.criterion_GAN(pred_fake, torch.ones_like(pred_fake))
@@ -283,7 +238,7 @@ class GAN:
                 # loss_content = self.criterion_content(gen_features, real_features.detach())
 
                 # Pixel-wise loss
-                loss_pixel = torch.mean(self.criterion_pixelwise(fake_echo, image) * weight_map)  # * segment_mask
+                loss_pixel = torch.mean(self.criterion_pixelwise(fake_echo, image) * weight_map) # weight map?
 
                 # Total loss
                 loss_G = self.loss_weight_d * loss_GAN + self.loss_weight_g * loss_pixel  # 1 100
@@ -304,15 +259,18 @@ class GAN:
                 prev_time = time.time()
 
                 # metrics
-                psnr = metrics.psnr(mask.data, fake_echo.data)  # * segment_mask
-                ssim = metrics.ssim(mask.data, fake_echo.data, window_size=11, size_average=True)  # * segment_mask
+                # psnr = metrics.psnr(mask.data, fake_echo.data)
+                # ssim = metrics.ssim(mask.data, fake_echo.data, window_size=11, size_average=True)
+                psnr = metrics.psnr(image.data, fake_echo.data)
+                ssim = metrics.ssim(image.data, fake_echo.data, window_size=11, size_average=True)
 
                 psnr_avg.update(psnr)
                 ssim_avg.update(ssim)
 
             # print log
             sys.stdout.write(
-                "\r[Epoch %d/%d] [D loss: %f patch_fake: %f real: %f] [G loss: %f, pixel: %f, adv: %f] PSNR: %f SSIM: %f ETA: %s"
+                "\r[Epoch %d/%d] [D loss: %f patch_fake: %f real: %f] [G loss: %f, pixel: %f, adv: %f] PSNR: %f SSIM: "
+                "%f ETA: %s "
                 % (
                     self.epoch,
                     self.epochs,

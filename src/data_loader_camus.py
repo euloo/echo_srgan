@@ -17,6 +17,7 @@ encode_qualities = {'Good': np.array([0, 0, 1]), 'Medium': np.array([0, 1, 0]), 
 encode_heart_states = {'ES': np.array([1, 0]), 'ED': np.array([0, 1])}
 encode_views = {'2CH': np.array([1, 0]), '4CH': np.array([0, 1])}
 
+
 class DatasetCAMUS(Dataset):
 
     def __init__(self,
@@ -223,6 +224,8 @@ class DatasetCAMUS(Dataset):
         image_itk = itk.ReadImage(img_path)
         image = itk.GetArrayFromImage(image_itk)
         return np.squeeze(image)
+    def get_circle_sector(img):
+        mask = img != 1
 
     def get_weight_map(self, mask):
         # let the y axis have higher variance
