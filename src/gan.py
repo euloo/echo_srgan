@@ -148,7 +148,7 @@ class GAN:
                                       subset='test')
 
         self.train_loader = torch.utils.data.DataLoader(self.train_data,
-                                                        batch_size=config['BATCH_SIZE'],  # 32 max
+                                                        batch_size=config['BATCH_SIZE'],
                                                         shuffle=True,
                                                         num_workers=config['NUM_WORKERS'])
         self.valid_loader = torch.utils.data.DataLoader(self.valid_data,
@@ -199,7 +199,7 @@ class GAN:
                 self.discriminator.train()
                 self.optimizer_D.zero_grad()
 
-                fake_echo = self.generator(full_mask)  * circle_mask
+                fake_echo = self.generator(full_mask) * circle_mask
 
                 # Real loss
                 pred_real = self.discriminator(image, mask)
@@ -227,7 +227,7 @@ class GAN:
                 self.optimizer_G.zero_grad()
 
                 # GAN loss
-                fake_echo = self.generator(full_mask)  * circle_mask
+                fake_echo = self.generator(full_mask) * circle_mask
                 pred_fake = self.discriminator(fake_echo, mask)
 
                 loss_GAN = self.criterion_GAN(pred_fake, torch.ones_like(pred_fake))
@@ -238,7 +238,7 @@ class GAN:
                 # loss_content = self.criterion_content(gen_features, real_features.detach())
 
                 # Pixel-wise loss
-                loss_pixel = torch.mean(self.criterion_pixelwise(fake_echo, image) )#* weight_map) # weight map?
+                loss_pixel = torch.mean(self.criterion_pixelwise(fake_echo, image) * weight_map)
 
                 # Total loss
                 loss_G = self.loss_weight_d * loss_GAN + self.loss_weight_g * loss_pixel  # 1 100
@@ -259,8 +259,7 @@ class GAN:
                 prev_time = time.time()
 
                 # metrics
-                # psnr = metrics.psnr(mask.data, fake_echo.data)
-                # ssim = metrics.ssim(mask.data, fake_echo.data, window_size=11, size_average=True)
+
                 psnr = metrics.psnr(image.data, fake_echo.data)
                 ssim = metrics.ssim(image.data, fake_echo.data, window_size=11, size_average=True)
 
